@@ -1,0 +1,21 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "clipboard-rotative"
+version = "0.1.0"
+description = "Paste a sequence of strings, one per Cmd+V, on macOS."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+    "pyobjc-framework-Cocoa>=10.0",
+    "pyobjc-framework-Quartz>=10.0",
+]
+
+[project.scripts]
+clipboard-rotative = "clipboard_rotative.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["clipboard_rotative"]
