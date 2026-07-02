@@ -30,13 +30,10 @@ import time
 import Quartz
 from AppKit import NSPasteboard, NSPasteboardTypeString
 
+
 # Virtual keycode for the physical "V" key (kVK_ANSI_V). Cmd+V uses this slot
 # across common layouts because paste is bound to the physical key.
 _V_KEYCODE = 9
-
-# Seconds to wait after the final (empty) paste before restoring the original
-# clipboard, so the foreground app finishes reading the pasteboard first.
-_RESTORE_SETTLE_SECONDS = 0.4
 
 
 def _set_clipboard(text: str) -> None:
@@ -54,7 +51,7 @@ def _get_clipboard() -> str:
 
 def run(items: list[str]) -> int:
     """Install the tap and rotate `items` across each Cmd+V. Returns exit code."""
-    original = _get_clipboard()
+    # original = _get_clipboard()
     # Single-threaded mutable state for the run-loop callback.
     state = {"index": 0, "done": False}
     tap_holder: dict[str, object] = {}
@@ -82,6 +79,8 @@ def run(items: list[str]) -> int:
             i = state["index"]
             if i < len(items):
                 _set_clipboard(items[i])  # paste a, b, c, ...
+                if i + 1 < len(items):
+                    sys.stderr.write(items[i+1] + "\n")
             else:
                 _set_clipboard("")  # one final "paste nothing"
             state["index"] += 1
@@ -114,13 +113,7 @@ def run(items: list[str]) -> int:
         Quartz.CFRunLoopGetCurrent(), source, Quartz.kCFRunLoopCommonModes
     )
     Quartz.CGEventTapEnable(tap, True)
-
-    sys.stderr.write(
-        f"clipboard-rotative: armed with {len(items)} item(s). "
-        "Press Cmd+V to paste each in turn (then once more for nothing). "
-        "Ctrl+C to abort.\n"
-    )
-
+    sys.stderr.write(items[0] + "\n")
     try:
         Quartz.CFRunLoopRun()
     except KeyboardInterrupt:
@@ -128,9 +121,6 @@ def run(items: list[str]) -> int:
     finally:
         Quartz.CGEventTapEnable(tap, False)
 
-    # Let the last paste finish reading the pasteboard, then restore.
-    time.sleep(_RESTORE_SETTLE_SECONDS)
-    _set_clipboard(original)
     return 0
 
 
@@ -141,12 +131,17 @@ def main(argv: list[str] | None = None) -> int:
         sys.stderr.write("clipboard-rotative: macOS only.\n")
         return 2
 
+    if not argv:
+        lines = _get_clipboard().strip().splitlines()
+        if lines:
+            return run(lines)
+
     if not argv or argv[0] in ("-h", "--help"):
         sys.stderr.write(
-            "usage: clipboard-rotative STRING [STRING ...]\n"
+            "usage: clipboard-rotative [STRING ...]\n"
             "  Each Cmd+V pastes the next STRING; one more Cmd+V pastes nothing.\n"
         )
-        return 0 if argv else 2
+        return 2
 
     return run(argv)
 
